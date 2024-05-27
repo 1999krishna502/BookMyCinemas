@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<p><strong>Seats:</strong></p>
+<ul class="seat-list">
+    {% for seat in movie_detail.seats %}
+    <li class="{% if seat.is_available %}available{% else %}not-available{% endif %}">
+        Seat Number: {{ seat.seat_number }} - {% if seat.is_available %}Available{% else %}Not Available{% endif %}
+    </li>
+    {% endfor %}
+</body>
+</html>
+
+
+
+# def theater_details(request):
+#     a=Theater.objects.all()
+#
+#     t_n=[]
+#     loc=[]
+#     for i in a:
+#
+#         tn=i.theater_name
+#         t_n.append(tn)
+#         l=i.location
+#         loc.append(l)
+#     pair=zip(t_n,loc)
+#     return render(request, 'theater_details.html', {'a': pair})
+
+
+def book_tickets(request):
+if request.method == 'POST':
+form = BookingForm(request.POST)
+if form.is_valid():
+email = form.cleaned_data['email']
+request.session['email'] = email
+
+num_tickets = form.cleaned_data['num_tickets']
+showtime_id = form.cleaned_data['showtime_id']
+
+try:
+showtime = Showtime.objects.get(pk=showtime_id)
+except Showtime.DoesNotExist:
+return JsonResponse({'error': 'Selected showtime does not exist'}, status=404)
+
+if num_tickets <= showtime.seats_available:
+showtime.seats_available -= num_tickets
+showtime.save()
+
+try:
+signup_model_obj = signup_model.objects.get(email=email)
+except signup_model.DoesNotExist:
+return JsonResponse({'error': 'User with provided email does not exist'}, status=404)
+
+
+
+# Create and save the booking
+booking = Booking.objects.create(signup_model=signup_model_obj, showtime=showtime, num_tickets=num_tickets, )
+booking.save()
+
+
+return JsonResponse({'message': 'Tickets booked successfully', 'redirect': '/payment/'})
+else:
+return JsonResponse({'error': 'Not enough seats available'}, status=400)
+else:
+return JsonResponse({'error': 'Invalid form data', 'details': form.errors}, status=400)
+else:
+form = BookingForm()
+showtimes = Showtime.objects.all()  # Retrieve all available showtimes
+return render(request, 'book_tickets.html', {'form': form, 'showtimes': showtimes})
